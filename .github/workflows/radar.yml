@@ -1,0 +1,30 @@
+name: Trend Radar
+
+on:
+  schedule:
+    # Daily at 01:00 UTC = 06:00 PKT — fresh trends every morning
+    - cron: "0 1 * * *"
+  workflow_dispatch:  # manual "Run workflow" button
+
+jobs:
+  radar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests pyyaml libsql
+
+      - name: Run Trend Radar (all niches)
+        env:
+          TURSO_URL: ${{ secrets.TURSO_URL }}
+          TURSO_TOKEN: ${{ secrets.TURSO_TOKEN }}
+        run: python trend_radar.py --niche all
+
+      - name: Show run summary
+        run: tail -30 trends/run-log.md
