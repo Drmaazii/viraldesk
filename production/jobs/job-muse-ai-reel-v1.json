@@ -1,0 +1,95 @@
+{
+ "caption": "Build your OWN AI software — completely FREE!\n\nWatch an idea turn into finished software with AI — no coding, no cost. Just write your idea, and AI does the rest!\n\nWhat software would YOU build first? Tell me in the comments!\n\n#ai #artificialintelligence #tech #software #coding #techtok #learnontiktok #pakistan #fyp #viral",
+ "character_refs": [
+  "~/workspace/avatar_library/maaz-face-reference.png"
+ ],
+ "end_card": {
+  "duration_s": 4.0,
+  "headline": [
+   "Want the Link?",
+   "Comment: AI"
+  ],
+  "voiceover": "Want the link? Comment: A I!",
+  "voiceover_lang": "en"
+ },
+ "engine": "stills",
+ "niche": "tech demo",
+ "output_dir": "finals",
+ "prompt_id": 1,
+ "prompt_version": 1,
+ "scenes": [
+  {
+   "duration_s": 4.0,
+   "id": "s1",
+   "include_presenter": true,
+   "keyframe": "assets/keyframes/scene1.png",
+   "motion": "zoom_in",
+   "onscreen_text": [
+    "Build Your Own AI Software",
+    "FREE!"
+   ],
+   "visual": "Excited young Pakistani man with a beard (match the attached reference face exactly) sitting at a modern desk, pointing in amazement at a glowing laptop screen where a colorful mobile app interface is being built automatically, dramatic deep-blue and crimson-red lighting, floating holographic UI cards around him. Vertical 9:16 3D illustration, glossy clean render, high detail. IMPORTANT: no text, no words, no letters, no numbers, no watermark anywhere. Keep the top-left corner a plain empty background area.",
+   "voiceover": "Build your own AI software — completely free!",
+   "voiceover_lang": "en"
+  },
+  {
+   "duration_s": 7.0,
+   "id": "s2",
+   "include_presenter": false,
+   "keyframe": "assets/keyframes/scene2.png",
+   "motion": "pan_right",
+   "onscreen_text": [
+    "Watch — The App",
+    "Builds Itself!"
+   ],
+   "visual": "Close-up of a laptop screen where a mobile app is assembling itself automatically: progress bars filling up, UI blocks snapping into place, lines of code transforming into finished app screens, glowing deep-blue and crimson-red tech aesthetic, subtle sparkles. No person in frame. Vertical 9:16 3D illustration, glossy clean render, high detail. IMPORTANT: no text, no words, no letters, no numbers, no watermark anywhere. Keep the top-left corner a plain empty background area.",
+   "voiceover": "Watch! The app is building itself right in front of you. No coding, no degree — just amazing!",
+   "voiceover_lang": "en"
+  },
+  {
+   "duration_s": 7.0,
+   "id": "s3",
+   "include_presenter": false,
+   "keyframe": "assets/keyframes/scene3.png",
+   "motion": "zoom_out",
+   "onscreen_text": [
+    "Step 1:",
+    "Just Write Your Idea"
+   ],
+   "visual": "Overhead view of hands typing on a laptop keyboard, on the screen a large friendly chat box with soft abstract lines suggesting a written idea, warm desk lamp glow, deep navy and red accents around the desk. No face visible. Vertical 9:16 3D illustration, glossy clean render, high detail. IMPORTANT: no text, no words, no letters, no numbers, no watermark anywhere. Keep the top-left corner a plain empty background area.",
+   "voiceover": "Step one: just write down your idea, like you are explaining it to a friend.",
+   "voiceover_lang": "en"
+  },
+  {
+   "duration_s": 7.0,
+   "id": "s4",
+   "include_presenter": false,
+   "keyframe": "assets/keyframes/scene4.png",
+   "motion": "pan_left",
+   "onscreen_text": [
+    "Step 2:",
+    "Share a Link, Get Software"
+   ],
+   "visual": "Smartphone screen showing a web link being shared into an AI builder app, the app instantly generating software screens from it, magical transformation sparkles, deep-blue to red gradient background, floating app icons. No person in frame. Vertical 9:16 3D illustration, glossy clean render, high detail. IMPORTANT: no text, no words, no letters, no numbers, no watermark anywhere. Keep the top-left corner a plain empty background area.",
+   "voiceover": "Step two: share a link or describe the details, and AI builds your software.",
+   "voiceover_lang": "en"
+  },
+  {
+   "duration_s": 6.0,
+   "id": "s5",
+   "include_presenter": false,
+   "keyframe": "assets/keyframes/scene5.png",
+   "motion": "zoom_in",
+   "onscreen_text": [
+    "Something to Change?",
+    "Just Say It!"
+   ],
+   "visual": "Split view 3D illustration: left side a chat bubble with soft abstract lines, right side a mobile app interface instantly changing its color theme from blue to red, transformation sparkles and motion lines between the two sides, deep navy background. No person in frame. Vertical 9:16, glossy clean render, high detail. IMPORTANT: no text, no words, no letters, no numbers, no watermark anywhere. Keep the top-left corner a plain empty background area.",
+   "voiceover": "Need to change something? Just say it! AI fixes it instantly.",
+   "voiceover_lang": "en"
+  }
+ ],
+ "title": "Muse AI reel recreation — Demo / Build-In-Public",
+ "topic": "Build your own AI software for FREE",
+ "notes": "Engine test build 2026-10-12: Urdu TTS backend returned empty audio twice (known flakiness — UTI work hit the same), so this test run uses English voiceover to verify the full audio pipeline. The engine supports Urdu VO and owner pre-recorded VO per scene."
+}

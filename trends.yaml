@@ -1,0 +1,87 @@
+# ViralDesk Trend Radar — niche configuration.
+# Four niche tabs (phone UI renders one sub-tab per niche later).
+# Add more niches here without code changes.
+# NOTE: news/finance/history are broad by design per Maaz's spec —
+# he may narrow them later (e.g. health-news, crypto-finance).
+
+niches:
+  health:
+    label: "Health"
+    keywords:
+      - "kidney stones"
+      - "Ozempic"
+      - "weight loss"
+      - "prostate"
+      - "vitamin D"
+    subreddits:
+      - "Health"
+      - "loseit"
+      - "nutrition"
+      - "AskDocs"
+    youtube_queries:
+      - "health tips"
+      - "weight loss transformation"
+      - "kidney stone remedy"
+
+  news:
+    label: "News"
+    keywords:
+      - "breaking news"
+      - "Pakistan"
+      - "world news"
+      - "election"
+    subreddits:
+      - "worldnews"
+      - "news"
+      - "pakistan"
+    youtube_queries:
+      - "breaking news today"
+      - "world news today"
+      - "pakistan news headlines"
+
+  finance:
+    label: "Finance"
+    keywords:
+      - "bitcoin"
+      - "stock market"
+      - "personal finance"
+      - "crypto"
+    subreddits:
+      - "personalfinance"
+      - "CryptoCurrency"
+      - "stocks"
+      - "Bitcoin"
+    youtube_queries:
+      - "bitcoin news today"
+      - "stock market today"
+      - "personal finance tips"
+
+  history:
+    label: "History"
+    keywords:
+      - "ancient history"
+      - "world war 2"
+      - "ottoman empire"
+      - "mughal empire"
+    subreddits:
+      - "history"
+      - "AskHistorians"
+      - "historymemes"
+    youtube_queries:
+      - "ancient history documentary"
+      - "ottoman empire history"
+      - "mughal empire documentary"
+
+settings:
+  # Arctic Shift (Reddit archive API): gentle spacing between requests
+  reddit_min_interval_secs: 1
+  reddit_posts_per_sub: 25
+  # Cache raw source responses (hours)
+  cache_ttl_hours: 6
+  # YouTube search pages per niche query (1 page per query, gentle)
+  youtube_results_per_page: 10
+  # HTTP timeout (seconds)
+  request_timeout: 20
+  # Items per niche per run
+  blog_topics_per_niche: 5
+  social_videos_per_niche: 5

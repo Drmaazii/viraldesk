@@ -1,0 +1,128 @@
+# ViralDesk Production — engine registry (Phase 3)
+# =====================================================
+# Swap production engines WITHOUT code changes:
+#   1. Set `default_engine` below, OR
+#   2. Run:  python produce.py --job <job.json> --engine <name>
+#
+# Engine statuses:
+#   working    — runs today, no key needed
+#   key_gated  — code-complete, needs an API key in ~/workspace/viraldesk/.env
+#   pending    — waits on another build (Phase 2 pipeline)
+#   blocked    — cannot run in this environment (region/GPU)
+
+default_engine: stills
+
+engines:
+  stills:
+    module: engines.stills
+    class: StillsEngine
+    status: working
+    description: >
+      Keyframes + Ken Burns motion + AI voiceover + burned-in captions +
+      branding overlays. No AI video generation needed — runs on this machine TODAY.
+      Keyframes are generated via the media pipeline (agent-side) and passed in;
+      everything else (motion, voice, captions, encode) is deterministic code.
+    capabilities:
+      text_to_video: false
+      image_to_video: false
+      character_reference: "attached to every keyframe generation (locked refs, agent-side)"
+      max_duration_s: 180
+      audio: "AI voiceover (Urdu/English); owner's real voiceover can be dropped in per scene"
+      resolution: "1080x1920 vertical"
+    cost_per_video_usd: "~0 (image-gen calls only)"
+    config:
+      fps: 30
+      width: 1080
+      height: 1920
+      kenburns_zoom: 1.12
+      video_profile: "baseline"
+      video_level: "3.0"
+      audio_bitrate: "128k"
+      crf: 20
+      max_size_mb: 25
+
+  phase2_preview:
+    module: engines.phase2_preview
+    class: Phase2PreviewEngine
+    status: pending
+    description: >
+      Adapter slot for the Phase 2 Preview Studio pipeline (built overnight in
+      ../previews/). Auto-activates when previews/pipeline.py lands — no code
+      change needed, it is already registered here.
+
+  fal:
+    module: engines.fal
+    class: FalEngine
+    status: key_gated
+    description: >
+      fal.ai aggregator — one key reaches Veo, Kling, Wan and 1000+ models.
+      CODE-COMPLETE but UNTESTED and KEY-GATED: needs FAL_API_KEY in .env.
+      AI video-gen is region-blocked on this machine, so live calls were never attempted.
+    capabilities:
+      text_to_video: true
+      image_to_video: true
+      character_reference: "via input image(s); ref images must be PUBLIC URLs (see README)"
+      max_duration_s: "8-15 per clip (model-dependent); scenes stitched in post"
+      audio: "model-dependent (Veo = native audio option)"
+      billing: "prepaid credits, 365-day validity; failed generations NOT billed"
+    approx_cost_per_35s_video_usd: "2.50-5.00 (Kling 3.0 std, 6x5s clips) — verify live pricing"
+    env_key: FAL_API_KEY
+    config:
+      model: "fal-ai/veo3/fast"   # UNTESTED default — verify the model id on fal.ai before first paid run
+      aspect_ratio: "9:16"
+      poll_timeout_s: 600
+      # CHARACTER_REF_URL: "https://..."  # public URL of locked character ref (morning setup)
+
+  replicate:
+    module: engines.replicate
+    class: ReplicateEngine
+    status: key_gated
+    description: >
+      Replicate hosted models (Kling, Veo, Wan, Seedance...).
+      CODE-COMPLETE but UNTESTED and KEY-GATED: needs REPLICATE_API_TOKEN in .env.
+    capabilities:
+      text_to_video: true
+      image_to_video: true
+      character_reference: "model-dependent; ref images must be PUBLIC URLs"
+      max_duration_s: "model-dependent; scenes stitched in post"
+      audio: "model-dependent"
+      billing: "per-second billing; failed runs NOT charged"
+    approx_cost_per_35s_video_usd: "3.00-6.00 (Kling v3 Omni, 6x5s clips) — verify live pricing"
+    env_key: REPLICATE_API_TOKEN
+    config:
+      model: "kuma/kling-v3-omni"   # UNTESTED placeholder — set real owner/model:version before first paid run
+      aspect_ratio: "9:16"
+      poll_timeout_s: 600
+
+  kling:
+    module: engines.kling
+    class: KlingEngine
+    status: key_gated
+    description: >
+      Kling direct API (api.klingai.com) — strongest motion quality per morning research.
+      CODE-COMPLETE but UNTESTED and KEY-GATED: needs KLING_ACCESS_KEY + KLING_SECRET_KEY.
+      NOTE: Kling API needs a Kling Open Platform account with a prepaid package
+      ($9.80+); a consumer subscription does NOT grant API access.
+    capabilities:
+      text_to_video: true
+      image_to_video: true
+      character_reference: "up to 4 reference images (Pro); must be PUBLIC URLs"
+      max_duration_s: "15 per clip; scenes stitched in post"
+      audio: "optional add-on"
+      billing: "prepaid packages; failed API generations NOT billed"
+    approx_cost_per_35s_video_usd: "2.50-4.00 (std, 6x5s silent) — verify live pricing"
+    env_key: KLING_ACCESS_KEY
+    config:
+      api_base: "https://api.klingai.com"
+      mode: "std"          # std | pro
+      aspect_ratio: "9:16"
+      poll_timeout_s: 600
+
+  # ---- future slot (master spec Option A) ----
+  # comfyui:
+  #   module: engines.comfyui
+  #   class: ComfyUIEngine
+  #   status: blocked
+  #   description: >
+  #     Self-hosted ComfyUI + Wan 2.2 on a rented cloud GPU. BLOCKED: no GPU on
+  #     this machine or the owner's laptop. Needs a cloud GPU (~$0.50-2.00/hr).

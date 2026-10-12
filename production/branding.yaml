@@ -1,0 +1,44 @@
+# ViralDesk Production — locked branding (Phase 3)
+# =====================================================
+# Single source of truth for branding. The engine reads this file and injects
+# it into EVERY generation — never hardcode these values into prompts or code.
+# Edit values here (no code change needed).
+
+brand_name: "Nasim Welfare Clinic"
+presenter_name: "Dr. Maaz Shahid"
+qualification: "MBBS, MS (Urology)"
+phone: "0317 7788426"
+address_lines:
+  - "Abdul Rehman Hospital & Azeem Hospital, Mandra"
+  - "Nasim Welfare Clinic, Rawalpindi"
+address_urdu: "ماندرہ: عبدالرحمٰن ہسپتال اور عظیم ہسپتال، ماندرہ / راولپنڈی: نسیم ویلفیئر کلینک، راولپنڈی"
+
+# Logo: the EXACT file — never let an image model redraw it.
+logo_path: "~/workspace/poster_build/logo_transparent.png"
+
+# Locked character cast: reference images attached to EVERY generation.
+# (family-cartoon cast lives at ../family-cartoon/characters-canonical-v2.png
+#  for the entertainment lane; the presenter ref below is the default.)
+character_refs:
+  - "~/workspace/avatar_library/maaz-face-reference.png"
+
+presenter_photo: "~/workspace/avatar_library/maaz-face-reference.png"
+
+colors:
+  primary: "#0A2A5C"     # deep navy
+  accent: "#D61F2C"      # crimson red
+  background: "#EAF3FF"  # light blue
+  text_dark: "#101828"
+  text_light: "#FFFFFF"
+
+# Layout rules (locked by owner 2026-10-11):
+#  - logo upper-left, presenter photo + name/qualification upper-right
+#    (lower-right is rejected — Instagram controls cover it)
+overlays:
+  logo_position: "upper_left"
+  logo_width_px: 200
+  logo_margin_px: 36
+  presenter_position: "upper_right"
+  presenter_diameter_px: 200
+  presenter_margin_px: 36
+  show_presenter_overlay: true
