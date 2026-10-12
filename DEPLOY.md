@@ -9,20 +9,21 @@ fast. (This is what you chose — totally fine.)
 
 ## Step 1 — GitHub (where the code lives)
 
-1. On your phone or computer, go to **github.com** and create a free account.
-2. Tap **+** (top right) → **New repository**. Name it `viraldesk`, leave it
-   Public, tap **Create repository**.
-3. On the new repo page tap **uploading an existing file**, and upload all
-   the files Muse prepared for you (the whole `viraldesk` folder contents).
-   Then tap **Commit changes**.
+Done already — the code is pushed to **Drmaazii/viraldesk** (branch `master`).
+If Muse asks you for the GitHub token again, it's only to push one small
+final fix; the website itself never uses it.
 
 ## Step 2 — Turso (where your data lives)
 
-1. Go to **turso.tech** and create a free account.
-2. Create a database — call it `viraldesk`.
-3. It will show you two things. **Copy both somewhere safe:**
-   - the database URL (starts with `libsql://`)
-   - an auth token (a long secret key)
+1. Go to **turso.tech** and create a free account (sign in with Google is fine).
+2. **Download the `viraldesk.db` file** Muse sent you in chat (tap it on your phone).
+3. In the Turso dashboard: **Databases** → **Create Database** → tap the
+   **Upload SQLite File** tab at the top → upload the file → name it
+   `viraldesk-data` → region **AWS AP South (Mumbai)** → Create.
+4. Open the new database → copy the **URL** (starts with `libsql://`) →
+   **Tokens** tab → **Create token** → copy the **token** (it shows once).
+5. Paste the URL + token in chat. (You can delete the empty `viraldesk`
+   database later — ignore it.)
 
 ## Step 3 — Streamlit (the website itself)
 
@@ -41,11 +42,15 @@ APP_PASSWORD = "pick-a-password-only-you-know"
 4. Save. The site rebuilds — you get a link like
    `yourname-viraldesk.streamlit.app`. Open it on your phone and your PC.
 
+**Important:** do not skip `APP_PASSWORD` — without it the site has no login
+and anyone with the link can open your data. Pick a password only you know.
+
 ## Then tell Muse
 
-Send Muse the Turso URL + token **through the secure link** (never in chat).
-Muse then copies your saved links, prompts and trend reports into the cloud
-database — everything you built so far appears on the site.
+Paste the Turso URL + token in chat. Your uploaded database already contains
+everything (links, prompts, trend reports) — nothing further to migrate.
+Muse then finishes the Streamlit deploy with you and sets the Trend Radar to
+keep writing fresh trends into the same cloud database on schedule.
 
 ## How it keeps working
 
