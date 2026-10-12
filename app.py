@@ -104,6 +104,22 @@ with tab_inbox:
             else:
                 st.error(f"Saved #{lid} but fetch failed: {rec['fetch_error'][:220]}")
 
+    with st.expander("✍️ Auto-fetch failed? Paste the text manually"):
+        st.caption("Copy the caption + transcript from the post and paste here — the decode works the same.")
+        m_author = st.text_input("Author / page name (optional)", key="manual_author")
+        m_caption = st.text_area("Caption / title", key="manual_caption", height=100)
+        m_transcript = st.text_area("Transcript / post text (optional)", key="manual_transcript", height=140)
+        if st.button("💾 Save with manual text", key="manual_save_btn"):
+            if not url.strip():
+                st.warning("Paste the link above first.")
+            elif not (m_caption.strip() or m_transcript.strip()):
+                st.warning("Paste at least the caption or the transcript.")
+            else:
+                rec = fetchers.manual_record(url.strip(), m_author, m_caption, m_transcript)
+                rec["niche_tags"] = niche.strip()
+                lid = db.save_link(rec)
+                st.success(f"Saved #{lid} — {rec['platform']} · manual text, ready to decode.")
+
     st.divider()
     st.subheader("Saved links")
     q = st.text_input("🔎 Search", placeholder="search url, caption, author, niche…", key="inbox_q")
@@ -130,7 +146,7 @@ with tab_decode:
     links = db.list_links()
     ok_links = [l for l in links if l["fetch_status"] == "ok"]
     if not ok_links:
-        st.info("No successfully fetched links yet — add one in the Inbox tab.")
+        st.info("No decodable links yet — paste a link in the Inbox tab (or use the manual-text option there).")
     else:
         choice = st.selectbox(
             "Choose link",
@@ -149,6 +165,9 @@ with tab_decode:
             _, title, analysis, prompt = st.session_state["last_decode"]
             st.markdown(f"**Format:** {analysis['format_title']}")
             st.markdown(f"**🎣 Hook (first 3s):** {analysis['hook']}")
+            with st.expander("🎣 Alternative hooks — similar angles on this win"):
+                for i, ah in enumerate(vd.alternative_hooks(link, analysis), 1):
+                    st.write(f"{i}. {ah}")
             with st.expander("📐 Beat structure"):
                 for b in analysis["beats"]:
                     st.write("• " + b)

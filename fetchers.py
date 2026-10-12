@@ -4,6 +4,8 @@ import os
 import re
 import subprocess
 import sys
+import urllib.parse
+import urllib.request
 from urllib.parse import urlparse
 
 IG_ACCOUNT_ID = "17841421963314094"  # @nasimclinic (linked Instagram account)
@@ -54,6 +56,45 @@ def _base(url, platform):
     }
 
 
+# ---------------- oEmbed fallback (works on Streamlit Cloud, no keys) ----------------
+_OEMBED_ENDPOINTS = {
+    "youtube": "https://www.youtube.com/oembed?url=",
+    "tiktok": "https://www.tiktok.com/oembed?url=",
+}
+
+
+def _oembed(platform: str, url: str):
+    """Best-effort title/author via the platform's public oEmbed endpoint."""
+    endpoint = _OEMBED_ENDPOINTS.get(platform)
+    if not endpoint:
+        return None
+    try:
+        req = urllib.request.Request(
+            endpoint + urllib.parse.quote(url, safe=""),
+            headers={"User-Agent": "Mozilla/5.0 (ViralDesk)"},
+        )
+        with urllib.request.urlopen(req, timeout=20) as r:
+            return json.loads(r.read().decode("utf-8", "ignore"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _oembed_fallback(rec: dict, url: str, what_for: str) -> dict:
+    """Fill title/author from oEmbed when the primary fetcher can't run."""
+    data = _oembed(rec["platform"], url)
+    if not data or not data.get("title"):
+        return rec
+    rec["caption"] = data.get("title")
+    rec["author"] = data.get("author_name")
+    rec["description"] = (
+        "Note: title/author via public oEmbed. Metrics and transcript are "
+        f"unavailable here ({what_for}). Paste the caption/transcript manually "
+        "in the Inbox for a full decode."
+    )
+    rec["fetch_status"] = "ok"
+    return rec
+
+
 # ---------------- Facebook ----------------
 def fetch_facebook(url: str) -> dict:
     rec = _base(url, "facebook")
@@ -61,7 +102,8 @@ def fetch_facebook(url: str) -> dict:
     if "/share/" in url:
         ok, out, err = _run(["facebook-cli", "link-sharing", "decode-url", "--url", url])
         if not ok:
-            rec["fetch_error"] = f"share-link decode failed: {err}"
+            rec["fetch_error"] = ("facebook-cli not available on this host. "
+                                  "Paste the caption/transcript manually in the Inbox for a full decode.")
             return rec
         try:
             canon = json.loads(out).get("original_url") or ""
@@ -73,7 +115,8 @@ def fetch_facebook(url: str) -> dict:
     rec["canonical_url"] = canon
     ok, out, err = _run(["facebook-cli", "post", "read", "--url", canon])
     if not ok:
-        rec["fetch_error"] = f"post read failed: {err}"
+        rec["fetch_error"] = ("facebook-cli not available on this host. "
+                              "Paste the caption/transcript manually in the Inbox for a full decode.")
         return rec
     try:
         data = json.loads(out)
@@ -113,7 +156,8 @@ def fetch_instagram(url: str) -> dict:
         "instagram-cli", "post", "--account-id", IG_ACCOUNT_ID, "--url", url,
     ])
     if not ok:
-        rec["fetch_error"] = f"instagram post fetch failed: {err}"
+        rec["fetch_error"] = ("instagram-cli not available on this host. "
+                              "Paste the caption/transcript manually in the Inbox for a full decode.")
         return rec
     try:
         data = json.loads(out)
@@ -146,8 +190,9 @@ def fetch_youtube(url: str) -> dict:
          "--socket-timeout", "60", "--retries", "2", url], timeout=120
     )
     if not ok:
+        # yt-dlp missing/blocked (e.g. Streamlit Cloud) -> oEmbed fallback
         rec["fetch_error"] = f"yt-dlp metadata failed: {err}"
-        return rec
+        return _oembed_fallback(rec, url, "yt-dlp is unavailable on this host")
     try:
         m = json.loads(out)
     except Exception as e:  # noqa: BLE001
@@ -177,28 +222,39 @@ def fetch_youtube(url: str) -> dict:
     return rec
 
 
-# ---------------- Stubs ----------------
+# ---------------- TikTok (oEmbed; metrics need an API key) ----------------
 def fetch_tiktok(url: str) -> dict:
     rec = _base(url, "tiktok")
+    rec = _oembed_fallback(rec, url, "TikTok offers no free metrics endpoint")
+    if rec["fetch_status"] == "ok":
+        return rec
     rec["fetch_error"] = (
-        "TikTok fetch not supported yet: TikTok offers no free public oEmbed/metadata "
-        "endpoint for arbitrary video URLs. To unblock: add a TikTok API key "
-        "(TIKTOK_API_KEY in .env) via the TikTok Research/Display API with an approved "
-        "app, or run yt-dlp with logged-in browser cookies (fragile). URL saved; "
-        "paste metrics manually if needed."
+        "TikTok title lookup failed and metrics need a TikTok API key "
+        "(TIKTOK_API_KEY in .env) via the TikTok Research/Display API with an "
+        "approved app. URL saved; paste the caption/transcript manually in the "
+        "Inbox for a full decode."
     )
     return rec
 
 
+# ---------------- Telegram (stub: needs a bot token) ----------------
 def fetch_telegram(url: str) -> dict:
     rec = _base(url, "telegram")
     rec["fetch_error"] = (
-        "Telegram fetch not supported yet: reading a channel post needs a Telegram "
-        "Bot token (for public channels, get one from @BotFather) or a user API "
-        "session. To unblock: set TELEGRAM_BOT_TOKEN in .env (bot must be admin of "
-        "the channel, or the channel must be public). URL saved; metrics can be "
-        "pasted manually."
+        "Telegram auto-fetch needs a bot token (TELEGRAM_BOT_TOKEN) even for public "
+        "channels. URL saved; paste the post text manually in the Inbox for a full decode."
     )
+    return rec
+
+
+def manual_record(url: str, author: str = "", caption: str = "", transcript: str = "") -> dict:
+    """Build a fetch_ok record from user-pasted text (used by the Inbox manual path)."""
+    rec = _base(url.strip(), detect_platform(url.strip()))
+    rec["author"] = author.strip() or None
+    rec["caption"] = caption.strip() or None
+    rec["transcript"] = transcript.strip() or None
+    rec["description"] = "Text pasted manually in the Inbox."
+    rec["fetch_status"] = "ok"
     return rec
 
 

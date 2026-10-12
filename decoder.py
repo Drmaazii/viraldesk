@@ -247,6 +247,37 @@ def decode(link, version=1):
     return title, analysis, prompt
 
 
+# ---------- alternative hooks ("similar hooks" / new angles on the same win) ----------
+_HOOK_OPENERS = [
+    "Stop scrolling — {h}",
+    "{H} …here's what nobody tells you",
+    "I tried this for 7 days: {h}",
+    "3 reasons {h}",
+    "{H} — myth or fact?",
+]
+
+
+def alternative_hooks(link, analysis=None):
+    """5 fresh hook lines in the same viral format — new angles on the decoded win.
+
+    Deterministic reframings of the extracted hook using proven opener patterns.
+    These are starting angles to adapt, not copy-paste lines.
+    """
+    analysis = analysis or analyze(link)
+    hook = (analysis.get("hook") or "").strip()
+    if not hook or hook.startswith("(no caption"):
+        topic = (link.get("niche_tags") or "this topic").split(",")[0].strip() or "this topic"
+        hook = f"everything you thought you knew about {topic}"
+    h = hook[0].lower() + hook[1:] if len(hook) > 1 else hook
+    H = hook[0].upper() + hook[1:] if len(hook) > 1 else hook
+    out = []
+    for tmpl in _HOOK_OPENERS:
+        line = tmpl.format(h=h.rstrip(".…!?"), H=H.rstrip(".…!?"))
+        if line not in out:
+            out.append(line)
+    return out[:5]
+
+
 # ================================================== TOPIC DECODER ======
 # Blog-topic decode: the same "why did this win" treatment the video decoder
 # gives reels, but for a trending topic -> article. Deterministic, no LLM.
