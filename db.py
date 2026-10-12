@@ -32,7 +32,10 @@ def connect():
     """A DBAPI connection: remote Turso when configured, else local sqlite3."""
     cfg = remote_config()
     if cfg:
-        import libsql  # only needed for remote; local fallback needs nothing new
+        try:
+            import libsql
+        except ImportError:  # libsql-experimental<=0.0.x exposes libsql_experimental
+            import libsql_experimental as libsql  # only needed for remote; local fallback needs nothing new
 
         url, token = cfg
         return libsql.connect(database=url, auth_token=token)
