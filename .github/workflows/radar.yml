@@ -10,6 +10,8 @@ jobs:
   radar:
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -28,3 +30,11 @@ jobs:
 
       - name: Show run summary
         run: tail -30 trends/run-log.md
+
+      - name: Commit radar reports to repo
+        run: |
+          git config user.name "viraldesk-radar"
+          git config user.email "radar@viraldesk.local"
+          git add trends/reports/ trends/run-log.md
+          git diff --cached --quiet || git commit -m "Radar reports $(date -u +%Y%m%d-%H%M)"
+          git push
