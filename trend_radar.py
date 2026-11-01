@@ -15,10 +15,18 @@ Sources — public endpoints only, NO api keys:
     from Reddit/YouTube instead — documented in the run log.
 
 Scoring (transparent, 0-100):
-    score = velocity (0-40) + engagement (0-40) + freshness (0-20)
-  * velocity:   engagement-per-hour, log-scaled (what's accelerating NOW)
-  * engagement: log-scaled upvotes/comments (Reddit) or views (YouTube)
-  * freshness:  recency of post/video
+  * Reddit:  score = velocity (0-40) + engagement (0-30) + freshness (0-30)
+      velocity:   engagement-per-hour, log-scaled (what's accelerating NOW)
+      engagement: log-scaled upvotes + 2*comments
+      freshness:  recency, decaying over 72h
+  * YouTube: score = views-per-day velocity (0-50) + engagement (0-20)
+      + freshness (0-30, 14-day decay; unknown age = neutral 15)
+      Lifetime views alone no longer dominate: an evergreen video with a
+      slow daily rate must not outrank a genuinely new riser.
+
+Selection additionally applies a hard freshness gate (blog topics <=24h,
+news <=12h) and cross-run suppression of the items shown in the previous
+3 days' reports, with a youngest-first fallback (see select_niche_items).
 
 Decode:
   * social video -> links table + decoder.decode -> prompts table
@@ -371,20 +379,30 @@ def score_reddit_post(p):
     eng = p["score"] + 2 * p["comments"]
     vel_raw = _eng_velocity(eng, p["age_h"])
     velocity = 40.0 * min(1.0, math.log10(1 + vel_raw) / 4.0)
-    engagement = 40.0 * min(1.0, math.log10(1 + eng) / 5.0)
-    freshness = 20.0 * max(0.0, 1.0 - p["age_h"] / 168.0)
+    # Rebalanced 2026-11-01 (staleness fix): engagement 40 -> 30pts and
+    # freshness 20 -> 30pts with a fast 72h decay (was 168h). Lifetime
+    # engagement used to let days-old posts outrank fresh rising ones,
+    # so the digest repeated the same topics for days.
+    engagement = 30.0 * min(1.0, math.log10(1 + eng) / 5.0)
+    freshness = 30.0 * max(0.0, 1.0 - p["age_h"] / 72.0)
     total = round(min(100.0, velocity + engagement + freshness), 1)
     return total, round(velocity, 1), round(engagement, 1), round(freshness, 1)
 
 
 def score_youtube_video(v):
-    eng = v["views"]
-    age_h = v["age_h"] or 72
-    vel_raw = _eng_velocity(eng, age_h)
-    velocity = 40.0 * min(1.0, math.log10(1 + vel_raw) / 4.0)
-    engagement = 40.0 * min(1.0, math.log10(1 + eng) / 7.0)
-    freshness = (20.0 * max(0.0, 1.0 - age_h / 168.0)
-                 if v["age_h"] else 10.0)
+    views = v["views"]
+    age_h = v["age_h"]  # may be None (age not shown on the search page)
+    # Views-per-day leads (50pts) instead of raw lifetime views: a
+    # years-old evergreen with 19M total views but a slow daily rate
+    # must not beat a new video that is actually rising now.
+    eff_age_h = age_h if age_h else 72.0
+    views_per_day = views / max(eff_age_h / 24.0, 1.0 / 24.0)
+    velocity = 50.0 * min(1.0, math.log10(1 + views_per_day) / 6.0)
+    engagement = 20.0 * min(1.0, math.log10(1 + views) / 7.0)
+    if age_h:
+        freshness = 30.0 * max(0.0, 1.0 - age_h / 336.0)  # 14-day decay
+    else:
+        freshness = 15.0  # unknown age: neutral treatment, as before
     total = round(min(100.0, velocity + engagement + freshness), 1)
     return total, round(velocity, 1), round(engagement, 1), round(freshness, 1)
 
@@ -416,6 +434,132 @@ def dedupe(rows):
     for m in merged:
         m.pop("_key", None)
     return merged
+
+
+# ------------------------------------------------- cross-run memory ----
+_REPORT_NAME_RE = re.compile(r"^([a-z]+)-(\d{8})-\d{4}\.md$")
+
+
+def _recent_report_paths(niche_key, days, today_stamp):
+    """Report files for `niche_key` from the `days` most recent distinct
+    filename dates strictly before today (run dates are UTC)."""
+    if not os.path.isdir(REPORTS_DIR):
+        return []
+    by_date = {}
+    for fn in os.listdir(REPORTS_DIR):
+        m = _REPORT_NAME_RE.match(fn)
+        if m and m.group(1) == niche_key and m.group(2) < today_stamp:
+            by_date.setdefault(m.group(2), []).append(
+                os.path.join(REPORTS_DIR, fn))
+    paths = []
+    for d in sorted(by_date, reverse=True)[:days]:
+        paths.extend(sorted(by_date[d]))
+    return paths
+
+
+def load_recently_shown(niche_key, settings):
+    """Normalised title keys of the items the digest actually showed for
+    this niche over the previous `suppression_days` days: the first
+    blog_topics_per_niche / social_videos_per_niche '### N. <title>'
+    entries under each section of those days' report files.
+
+    Why parse reports instead of keeping a separate seen-store file:
+    the GitHub Actions workflow checks out the repo fresh each run and
+    commits back ONLY trends/reports/ + trends/run-log.md, so report
+    files are the one piece of state guaranteed to persist between
+    runs. A seen-store would silently reset every run unless the
+    workflow also committed it back.
+    """
+    days = int(settings.get("suppression_days", 3))
+    today = datetime.now(timezone.utc).strftime("%Y%m%d")
+    limits = {"blog": settings["blog_topics_per_niche"],
+              "video": settings["social_videos_per_niche"]}
+    seen = set()
+    for path in _recent_report_paths(niche_key, days, today):
+        section, counts = None, {"blog": 0, "video": 0}
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                lines = f.read().splitlines()
+        except Exception:
+            continue
+        for line in lines:
+            if line.startswith("## Blog topics"):
+                section = "blog"
+            elif line.startswith("## Social videos"):
+                section = "video"
+            elif line.startswith("## "):
+                section = None
+            elif section and line.startswith("### "):
+                if counts[section] >= limits[section]:
+                    continue
+                title = re.sub(r"^\d+\.\s*", "", line[4:]).strip()
+                if title:
+                    seen.add(_norm_key(title))
+                    counts[section] += 1
+    return seen
+
+
+def _is_suppressed(row, seen_keys):
+    if not seen_keys:
+        return False
+    key = _norm_key(row["topic"])
+    if key in seen_keys:
+        return True
+    # Same item under a slightly reworded title counts as shown too.
+    return any(difflib.SequenceMatcher(None, key, sk).ratio() > 0.9
+               for sk in seen_keys)
+
+
+def _select_blog_topics(rows, want, gate_h, seen_keys):
+    """Freshness gate + cross-run suppression, youngest-first fallback.
+
+    Tier 1: posts inside the freshness gate (age_h <= gate_h) that were
+    not shown in recent days, in score order.
+    Tier 2 (fallback, only if tier 1 cannot fill `want`): the YOUNGEST
+    remaining posts regardless of score — this is also the only path by
+    which a gated-out or recently-shown post may return. Because the
+    fallback is strictly youngest-first, a post older than 72h is only
+    ever picked once every younger alternative has been used, and a
+    quiet niche still fills its slots instead of coming back empty.
+    """
+    fresh = [r for r in rows
+             if r.get("_age_h") is not None and r["_age_h"] <= gate_h
+             and not _is_suppressed(r, seen_keys)]
+    picked = fresh[:want]
+    if len(picked) < want:
+        chosen = {id(r) for r in picked}
+        rest = sorted((r for r in rows if id(r) not in chosen),
+                      key=lambda r: (r.get("_age_h")
+                                     if r.get("_age_h") is not None
+                                     else float("inf")))
+        for r in rest:
+            if len(picked) >= want:
+                break
+            picked.append(r)
+    return picked
+
+
+def _rank_video_candidates(rows, fresh_days, seen_keys):
+    """Order video candidates for validation: fresh + unseen first
+    (score order), then older unseen, then — youngest first — recently
+    shown ones as the last-resort fill. Videos with unknown age keep
+    the neutral treatment and sit in the first tier."""
+    fresh_h = float(fresh_days) * 24.0
+
+    def age(r):
+        a = r.get("_age_h")
+        return a if a is not None else float("inf")
+
+    tier_fresh, tier_old, tier_seen = [], [], []
+    for r in rows:  # rows arrive score-sorted from dedupe()
+        if _is_suppressed(r, seen_keys):
+            tier_seen.append(r)
+        elif r.get("_age_h") is None or r["_age_h"] <= fresh_h:
+            tier_fresh.append(r)
+        else:
+            tier_old.append(r)
+    tier_seen.sort(key=age)  # fallback fill comes from the youngest
+    return tier_fresh + tier_old + tier_seen
 
 
 def _is_video_link(url):
@@ -451,11 +595,24 @@ def select_niche_items(niche_key, ncfg, settings, ttl_hours):
             "source": "reddit", "source_url": p["permalink_url"],
             "score": s, "velocity": v, "engagement": e, "freshness": f,
             "fetched_at": fetched_at,
+            "_age_h": p["age_h"],
             "_why": (f"{up:,} upvote{'s' if up != 1 else ''}, "
                      f"{cm:,} comment{'s' if cm != 1 else ''} "
                      f"in ~{age} on r/{p['subreddit']}"),
         })
-    blog_rows = dedupe(blog_rows)[:settings["blog_topics_per_niche"]]
+    blog_rows = dedupe(blog_rows)
+    # Staleness fix (2026-11-01): hard freshness gate (<=24h, news
+    # <=12h) + suppression of items shown in the previous 3 days'
+    # reports; youngest-first fallback fills any shortfall.
+    seen_keys = load_recently_shown(niche_key, settings)
+    gate_h = float(settings.get(
+        "news_freshness_gate_hours", 12) if niche_key == "news"
+        else settings.get("blog_freshness_gate_hours", 24))
+    blog_rows = _select_blog_topics(blog_rows,
+                                    settings["blog_topics_per_niche"],
+                                    gate_h, seen_keys)
+    log(f"niche {niche_key}: gate <={gate_h:.0f}h, "
+        f"{len(seen_keys)} recently-shown keys suppressed")
 
     # ---- social videos: YouTube (validated) + Reddit video links -------
     vid_rows = []
@@ -466,6 +623,7 @@ def select_niche_items(niche_key, ncfg, settings, ttl_hours):
             "source": "youtube", "source_url": vd["url"],
             "score": s, "velocity": v, "engagement": e, "freshness": f,
             "fetched_at": fetched_at,
+            "_age_h": vd["age_h"],
             "_channel": vd.get("channel", ""),
             "_views": vd["views"],
             "_why": f"{vd['views']:,} views" + (
@@ -480,6 +638,7 @@ def select_niche_items(niche_key, ncfg, settings, ttl_hours):
                 "source": "reddit", "source_url": p["url"],
                 "score": s, "velocity": v, "engagement": e, "freshness": f,
                 "fetched_at": fetched_at,
+                "_age_h": p["age_h"],
                 "_channel": f"r/{p['subreddit']}",
                 "_views": 0,
                 "_why": (f"r/{p['subreddit']}: {p['score']:,} "
@@ -488,6 +647,10 @@ def select_niche_items(niche_key, ncfg, settings, ttl_hours):
                          f"comment{'s' if p['comments'] != 1 else ''}"),
             })
     vid_rows = dedupe(vid_rows)
+    # Staleness fix (2026-11-01): validate fresh, not-recently-shown
+    # videos first; evergreen repeats only fill in as a last resort.
+    vid_rows = _rank_video_candidates(
+        vid_rows, settings.get("video_fresh_days", 14), seen_keys)
 
     # validate: keep only real, watchable URLs (no dead links)
     valid = []
@@ -512,11 +675,15 @@ def select_niche_items(niche_key, ncfg, settings, ttl_hours):
 
 # ===================================================== DECODE + STORE =====
 def decode_and_store(niche_key, blog_rows, vid_rows):
-    """Decode everything; store trend rows + decodes. Returns counts."""
+    """Decode everything; store trend rows + decodes.
+    Returns (n_blog, n_vid, trend_ids of this run's items)."""
     n_blog, n_vid = 0, 0
+    run_ids = []
     for row in blog_rows:
         why = row.pop("_why", "")
+        row.pop("_age_h", None)
         tid = save_trend(row)
+        run_ids.append(tid)
         title, analysis, brief = decoder.decode_topic(row["topic"], {
             "niche": niche_key, "why": why, "source": row["source"],
             "source_url": row["source_url"], "score": row["score"]})
@@ -526,7 +693,9 @@ def decode_and_store(niche_key, blog_rows, vid_rows):
         why = row.pop("_why", "")
         channel = row.pop("_channel", "")
         views = row.pop("_views", 0)
+        row.pop("_age_h", None)
         tid = save_trend(row)
+        run_ids.append(tid)
         link = {
             "url": row["source_url"],
             "canonical_url": row["source_url"],
@@ -546,7 +715,7 @@ def decode_and_store(niche_key, blog_rows, vid_rows):
                     link_id=link_id, prompt_id=prompt_id)
         n_vid += 1
         log(f"decoded video [{row['score']}] {row['topic'][:60]}")
-    return n_blog, n_vid
+    return n_blog, n_vid, run_ids
 
 
 # ============================================================ REPORTS =====
@@ -554,8 +723,17 @@ def _fmt_pct(n):
     return f"{n:,.0f}"
 
 
-def write_niche_report(niche_key, label, run_stamp):
+def write_niche_report(niche_key, label, run_stamp, trend_ids=None):
     items = get_niche_items(niche_key)
+    if trend_ids is not None:
+        # Report THIS run's picks only (companion staleness fix,
+        # 2026-11-01). This used to re-rank the niche's ENTIRE decoded
+        # history by score, so all-time high scorers stayed pinned to
+        # the top of every daily report — and the WhatsApp digest,
+        # which reads the top of the newest report, repeated the same
+        # items for days even when a run's own selection had rotated.
+        keep = set(trend_ids)
+        items = [i for i in items if i["id"] in keep]
     blogs = [i for i in items if i["kind"] == "blog_topic"]
     vids = [i for i in items if i["kind"] == "social_video"]
     os.makedirs(REPORTS_DIR, exist_ok=True)
@@ -615,9 +793,13 @@ def append_run_log(niches, counts, report_paths, elapsed):
     else:
         lines.append("- failures: none")
     lines += [
-        "- scoring: score = velocity(0-40) + engagement(0-40) + freshness(0-20)",
-        "  velocity = engagement-per-hour log-scaled (Reddit: "
-        "(upvotes+2*comments)/age_h; YouTube: views/age_h)",
+        "- scoring (rebalanced 2026-11-01): Reddit = velocity(0-40) + "
+        "engagement(0-30) + freshness(0-30, 72h decay); YouTube = "
+        "views-per-day velocity(0-50) + engagement(0-20) + "
+        "freshness(0-30, 14d decay)",
+        "- selection: freshness gate (blog <=24h, news <=12h), 3-day "
+        "cross-run suppression parsed from recent reports, "
+        "youngest-first fallback; reports list this run's picks only",
         "- Google Trends: SKIPPED (pytrends broken in env: urllib3 "
         "method_whitelist incompatibility; direct API 429 from this IP)",
         "- reddit.com JSON: 403 from here; used Arctic Shift public API",
@@ -642,15 +824,17 @@ def main():
 
     init_db()
     counts, report_paths = {}, []
+    run_ids_by_niche = {}
     run_stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M")
     for niche in niches:
         ncfg = cfg["niches"][niche]
         log(f"--- niche: {ncfg['label']} ({niche})")
         blog_rows, vid_rows = select_niche_items(niche, ncfg, settings, ttl)
         log(f"selected: {len(blog_rows)} blog topics, {len(vid_rows)} videos")
-        nb, nv = decode_and_store(niche, blog_rows, vid_rows)
+        nb, nv, run_ids = decode_and_store(niche, blog_rows, vid_rows)
         counts[niche] = (nb, nv)
-        rp = write_niche_report(niche, ncfg["label"], run_stamp)
+        run_ids_by_niche[niche] = set(run_ids)
+        rp = write_niche_report(niche, ncfg["label"], run_stamp, run_ids)
         report_paths.append(rp)
         log(f"report: {rp}")
 
@@ -659,6 +843,9 @@ def main():
     print("\n================ TOP PICKS ================")
     for niche in niches:
         items = get_niche_items(niche)
+        ids = run_ids_by_niche.get(niche)
+        if ids is not None:  # this run's picks, not all-time history
+            items = [i for i in items if i["id"] in ids]
         print(f"\n### {cfg['niches'][niche]['label']}")
         for it in [i for i in items if i["kind"] == "blog_topic"][:3]:
             print(f"  [BLOG {it['score']}] {it['topic'][:80]}")

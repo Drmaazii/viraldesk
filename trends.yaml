@@ -85,3 +85,12 @@ settings:
   # Items per niche per run
   blog_topics_per_niche: 5
   social_videos_per_niche: 5
+  # Staleness fix (2026-11-01): hard freshness gate for blog topics
+  # (hours). News is fast-moving, so it gets the tighter gate.
+  blog_freshness_gate_hours: 24
+  news_freshness_gate_hours: 12
+  # Items shown in the previous N days' reports are suppressed from
+  # re-selection (they may only return as youngest-first fallback fill)
+  suppression_days: 3
+  # Videos: prefer uploads younger than this many days (soft gate)
+  video_fresh_days: 14

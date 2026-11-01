@@ -311,3 +311,16 @@
   velocity = engagement-per-hour log-scaled (Reddit: (upvotes+2*comments)/age_h; YouTube: views/age_h)
 - Google Trends: SKIPPED (pytrends broken in env: urllib3 method_whitelist incompatibility; direct API 429 from this IP)
 - reddit.com JSON: 403 from here; used Arctic Shift public API
+
+## Run 2026-11-01T17:42:05+00:00 (23s) — niches: health
+- decoded: health=5 blog + 5 videos
+- reports: /home/hatch/workspace/viraldesk/trends/reports/health-20261101-1741.md
+- sources:
+  - reddit(arctic): 4 calls, 100 items, 0 failed
+  - youtube: 3 calls, 30 items, 0 failed
+  - video_validate: 5 calls, 5 items, 0 failed
+- failures: none
+- scoring (rebalanced 2026-11-01): Reddit = velocity(0-40) + engagement(0-30) + freshness(0-30, 72h decay); YouTube = views-per-day velocity(0-50) + engagement(0-20) + freshness(0-30, 14d decay)
+- selection: freshness gate (blog <=24h, news <=12h), 3-day cross-run suppression parsed from recent reports, youngest-first fallback; reports list this run's picks only
+- Google Trends: SKIPPED (pytrends broken in env: urllib3 method_whitelist incompatibility; direct API 429 from this IP)
+- reddit.com JSON: 403 from here; used Arctic Shift public API
