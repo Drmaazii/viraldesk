@@ -298,3 +298,16 @@
   velocity = engagement-per-hour log-scaled (Reddit: (upvotes+2*comments)/age_h; YouTube: views/age_h)
 - Google Trends: SKIPPED (pytrends broken in env: urllib3 method_whitelist incompatibility; direct API 429 from this IP)
 - reddit.com JSON: 403 from here; used Arctic Shift public API
+
+## Run 2026-11-01T07:08:31+00:00 (288s) — niches: health, news, finance, history
+- decoded: health=5 blog + 5 videos, news=5 blog + 5 videos, finance=5 blog + 5 videos, history=5 blog + 5 videos
+- reports: /home/runner/work/viraldesk/viraldesk/trends/reports/health-20261101-0703.md, /home/runner/work/viraldesk/viraldesk/trends/reports/news-20261101-0703.md, /home/runner/work/viraldesk/viraldesk/trends/reports/finance-20261101-0703.md, /home/runner/work/viraldesk/viraldesk/trends/reports/history-20261101-0703.md
+- sources:
+  - reddit(arctic): 14 calls, 350 items, 0 failed
+  - youtube: 12 calls, 120 items, 0 failed
+  - video_validate: 20 calls, 20 items, 0 failed
+- failures: none
+- scoring: score = velocity(0-40) + engagement(0-40) + freshness(0-20)
+  velocity = engagement-per-hour log-scaled (Reddit: (upvotes+2*comments)/age_h; YouTube: views/age_h)
+- Google Trends: SKIPPED (pytrends broken in env: urllib3 method_whitelist incompatibility; direct API 429 from this IP)
+- reddit.com JSON: 403 from here; used Arctic Shift public API
