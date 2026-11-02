@@ -324,3 +324,16 @@
 - selection: freshness gate (blog <=24h, news <=12h), 3-day cross-run suppression parsed from recent reports, youngest-first fallback; reports list this run's picks only
 - Google Trends: SKIPPED (pytrends broken in env: urllib3 method_whitelist incompatibility; direct API 429 from this IP)
 - reddit.com JSON: 403 from here; used Arctic Shift public API
+
+## Run 2026-11-02T07:09:54+00:00 (300s) — niches: health, news, finance, history
+- decoded: health=5 blog + 5 videos, news=5 blog + 5 videos, finance=5 blog + 5 videos, history=5 blog + 5 videos
+- reports: /home/runner/work/viraldesk/viraldesk/trends/reports/health-20261102-0705.md, /home/runner/work/viraldesk/viraldesk/trends/reports/news-20261102-0705.md, /home/runner/work/viraldesk/viraldesk/trends/reports/finance-20261102-0705.md, /home/runner/work/viraldesk/viraldesk/trends/reports/history-20261102-0705.md
+- sources:
+  - reddit(arctic): 14 calls, 350 items, 0 failed
+  - youtube: 12 calls, 120 items, 0 failed
+  - video_validate: 20 calls, 20 items, 0 failed
+- failures: none
+- scoring (rebalanced 2026-11-01): Reddit = velocity(0-40) + engagement(0-30) + freshness(0-30, 72h decay); YouTube = views-per-day velocity(0-50) + engagement(0-20) + freshness(0-30, 14d decay)
+- selection: freshness gate (blog <=24h, news <=12h), 3-day cross-run suppression parsed from recent reports, youngest-first fallback; reports list this run's picks only
+- Google Trends: SKIPPED (pytrends broken in env: urllib3 method_whitelist incompatibility; direct API 429 from this IP)
+- reddit.com JSON: 403 from here; used Arctic Shift public API
